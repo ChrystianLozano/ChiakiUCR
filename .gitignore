@@ -1,0 +1,21 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Icon?
+.Spotlight-V100
+.Trashes
+
+# Build artifacts & Compiled Binaries
+Chiaki-UCR.app/
+plugin/*.dylib
+*.zip
+*.dmg
+build/
+
+# Swift / Clang cache
+.build/
+*.o
+*.swp
+*~
