@@ -20,6 +20,7 @@ $(APP_OUT): $(APP_SRC) $(SHARED_HDR) $(PLUGIN_OUT) app/Info.plist
 	mkdir -p Chiaki-UCR.app/Contents/MacOS Chiaki-UCR.app/Contents/Frameworks Chiaki-UCR.app/Contents/Resources
 	cp app/Info.plist Chiaki-UCR.app/Contents/Info.plist
 	cp app/AppIcon.icns Chiaki-UCR.app/Contents/Resources/AppIcon.icns
+	cp app/AppIcon.png Chiaki-UCR.app/Contents/Resources/AppIcon.png
 	cp $(PLUGIN_OUT) Chiaki-UCR.app/Contents/Frameworks/
 	TMPDIR=/tmp $(SWIFTC) -O -parse-as-library -module-cache-path /tmp/swift-module-cache \
 		-import-objc-header $(SHARED_HDR) \

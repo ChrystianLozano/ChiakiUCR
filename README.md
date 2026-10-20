@@ -14,6 +14,9 @@
   </a>
   <img src="https://img.shields.io/badge/Platform-macOS%20(Apple%20Silicon)-black?style=for-the-badge&logo=apple" alt="macOS Apple Silicon">
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="Licencia MIT">
+  <a href="https://www.paypal.com/donate/?hosted_button_id=2J23ZH6FKZDN2">
+    <img src="https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal" alt="Donar con PayPal">
+  </a>
   <img src="https://img.shields.io/badge/Target-chiaki--ng-blueviolet?style=for-the-badge" alt="chiaki-ng">
 </p>
 
@@ -133,5 +136,6 @@ Este proyecto está distribuido bajo la licencia **MIT**. Consulta el archivo [L
 ---
 
 <p align="center">
-  Desarrollado con ❤️ por <a href="https://github.com/ChrystianLozano">Chrystian Lozano</a>
+  Desarrollado con ❤️ por <a href="https://github.com/ChrystianLozano">Chrystian Lozano</a> (<a href="mailto:hola@chrystian.dev">hola@chrystian.dev</a>)<br>
+  <a href="https://www.paypal.com/donate/?hosted_button_id=2J23ZH6FKZDN2">☕ <b>Apoya el proyecto con una donación en PayPal</b></a>
 </p>

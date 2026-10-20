@@ -62,6 +62,112 @@ func keyName(for code: UInt16) -> String {
     return kAvailableKeys.first(where: { $0.code == code })?.name ?? "Key(\(code))"
 }
 
+// MARK: - Update Checker
+
+final class UpdateChecker: ObservableObject {
+    enum Status: Equatable {
+        case idle
+        case checking
+        case upToDate(version: String)
+        case updateAvailable(version: String, url: URL, notes: String)
+        case error(message: String)
+    }
+
+    @Published var status: Status = .idle
+    @Published var lastChecked: Date? = nil
+
+    private var currentTask: URLSessionDataTask?
+
+    var currentVersionString: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2"
+        return "v\(v) (Build \(b))"
+    }
+
+    var currentShortVersion: String {
+        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0"
+    }
+
+    func check() {
+        currentTask?.cancel()
+        status = .checking
+
+        guard let url = URL(string: "https://api.github.com/repos/ChrystianLozano/ChiakiUCR/releases/latest") else {
+            status = .error(message: "URL de actualización no válida.")
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("ChiakiUCR-macOS", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 10.0
+
+        currentTask = URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.lastChecked = Date()
+
+                if let error = error as NSError?, error.code == NSURLErrorCancelled {
+                    return
+                }
+
+                if let error = error {
+                    self.status = .error(message: "Error de conexión: \(error.localizedDescription)")
+                    return
+                }
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    self.status = .error(message: "Respuesta del servidor no válida.")
+                    return
+                }
+
+                if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+                    self.status = .error(message: "Límite temporal de consultas en GitHub alcanzado.")
+                    return
+                }
+
+                guard (200...299).contains(httpResponse.statusCode),
+                      let data = data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let tagName = json["tag_name"] as? String else {
+                    self.status = .error(message: "No se encontró información de versiones en GitHub.")
+                    return
+                }
+
+                let htmlUrlStr = json["html_url"] as? String ?? "https://github.com/ChrystianLozano/ChiakiUCR/releases/latest"
+                let targetUrl = URL(string: htmlUrlStr) ?? URL(string: "https://github.com/ChrystianLozano/ChiakiUCR/releases")!
+                let body = json["body"] as? String ?? ""
+
+                if Self.isRemoteVersion(tagName, newerThan: self.currentShortVersion) {
+                    self.status = .updateAvailable(version: tagName, url: targetUrl, notes: body)
+                } else {
+                    self.status = .upToDate(version: tagName)
+                }
+            }
+        }
+        currentTask?.resume()
+    }
+
+    static func isRemoteVersion(_ remote: String, newerThan local: String) -> Bool {
+        let cleanRemote = (remote.components(separatedBy: "-").first ?? remote)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "vV \t\n\r"))
+        let cleanLocal = (local.components(separatedBy: "-").first ?? local)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "vV \t\n\r"))
+
+        let rParts = cleanRemote.split(separator: ".").compactMap { Int($0) }
+        let lParts = cleanLocal.split(separator: ".").compactMap { Int($0) }
+
+        let count = max(rParts.count, lParts.count)
+        for i in 0..<count {
+            let r = i < rParts.count ? rParts[i] : 0
+            let l = i < lParts.count ? lParts[i] : 0
+            if r > l { return true }
+            if r < l { return false }
+        }
+        return false
+    }
+}
+
 // MARK: - ViewModel backed by Shared Memory
 
 final class UCRViewModel: ObservableObject {
@@ -69,6 +175,10 @@ final class UCRViewModel: ObservableObject {
     private var timer: Timer?
     private var lastAliveCounter: UInt32 = 0
     private var staleTicks: Int = 0
+
+    @Published var isShowingAbout: Bool = false
+    @Published var emailCopied: Bool = false
+    let updateChecker = UpdateChecker()
 
     @Published var isChiakiConnected: Bool = false
     @Published var chiakiPid: UInt32 = 0
@@ -399,6 +509,33 @@ final class UCRViewModel: ObservableObject {
         ]
         try? task.run()
     }
+
+    func openDonation() {
+        if let url = URL(string: "https://www.paypal.com/donate/?hosted_button_id=2J23ZH6FKZDN2") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    func openEmail() {
+        if let url = URL(string: "mailto:hola@chrystian.dev") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    func openGitHub() {
+        if let url = URL(string: "https://github.com/ChrystianLozano/ChiakiUCR") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    func copyEmail() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("hola@chrystian.dev", forType: .string)
+        emailCopied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.emailCopied = false
+        }
+    }
 }
 
 // MARK: - Stick Visualizer Widget
@@ -462,6 +599,254 @@ struct StickVisualizer: View {
     }
 }
 
+// MARK: - About View Modal
+
+struct AboutView: View {
+    @ObservedObject var vm: UCRViewModel
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // Header: Icon + Title + Version + Subtitle
+            HStack(spacing: 16) {
+                if let iconPath = Bundle.main.path(forResource: "AppIcon", ofType: "png"),
+                   let nsImg = NSImage(contentsOfFile: iconPath) {
+                    Image(nsImage: nsImg)
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: 66, height: 66)
+                        .clipShape(Circle())
+                        .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 2)
+                } else {
+                    Image(systemName: "gamecontroller.fill")
+                        .resizable()
+                        .frame(width: 48, height: 32)
+                        .foregroundColor(.blue)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("Chiaki-UCR")
+                            .font(.system(size: 20, weight: .bold))
+                        Text(vm.updateChecker.currentVersionString)
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.15))
+                            .cornerRadius(4)
+                    }
+
+                    Text("Mapeador nativo de Ratón y Teclado a DualSense Virtual de PS5 para chiaki-ng en Apple Silicon.")
+                        .font(.system(size: 11.5))
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Divider()
+
+            // Update Status Card
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Estado de Actualizaciones")
+                        .font(.system(size: 12, weight: .bold))
+                    Spacer()
+                    if vm.updateChecker.status != .checking {
+                        Button(action: { vm.updateChecker.check() }) {
+                            Label("Comprobar ahora", systemImage: "arrow.clockwise")
+                                .font(.system(size: 11))
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundColor(.accentColor)
+                    }
+                }
+
+                updateStatusCard
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color(NSColor.controlBackgroundColor)))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2), lineWidth: 1))
+
+            // Developer Card
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Desarrollador y Contacto")
+                    .font(.system(size: 12, weight: .bold))
+
+                HStack(spacing: 8) {
+                    Image(systemName: "person.crop.circle.fill")
+                        .foregroundColor(.secondary)
+                    Text("Desarrollado por:")
+                        .font(.system(size: 11.5))
+                        .foregroundColor(.secondary)
+                    Text("Chrystian Lozano")
+                        .font(.system(size: 11.5, weight: .semibold))
+                    Spacer()
+                    Button(action: { vm.openGitHub() }) {
+                        Label("GitHub", systemImage: "link")
+                            .font(.system(size: 11))
+                    }
+                    .buttonStyle(.borderless)
+                }
+
+                HStack(spacing: 8) {
+                    Image(systemName: "envelope.fill")
+                        .foregroundColor(.secondary)
+                    Text("Correo:")
+                        .font(.system(size: 11.5))
+                        .foregroundColor(.secondary)
+
+                    Button(action: { vm.openEmail() }) {
+                        Text("hola@chrystian.dev")
+                            .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentColor)
+
+                    Spacer()
+
+                    Button(action: {
+                        vm.copyEmail()
+                    }) {
+                        Label(vm.emailCopied ? "¡Copiado!" : "Copiar",
+                              systemImage: vm.emailCopied ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 11))
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundColor(vm.emailCopied ? .green : .secondary)
+                }
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color(NSColor.controlBackgroundColor)))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2), lineWidth: 1))
+
+            // Donation Card
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "cup.and.saucer.fill")
+                        .foregroundColor(.orange)
+                    Text("Apoya el Proyecto")
+                        .font(.system(size: 12, weight: .bold))
+                }
+
+                Text("Chiaki-UCR es gratuito y de código abierto. Si te ha sido útil para jugar Arc Raiders, GTA o cualquier otro juego en tu Mac, una donación ayuda a mantener el desarrollo y nuevas funciones:")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack {
+                    Spacer()
+                    Button(action: { vm.openDonation() }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "heart.fill")
+                                .foregroundColor(.pink)
+                            Text("Donar con PayPal")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(red: 0.0, green: 0.45, blue: 0.85))
+                    Spacer()
+                }
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.orange.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.orange.opacity(0.3), lineWidth: 1))
+
+            // Footer
+            HStack {
+                Text("Licencia MIT • Chiaki-ng no está afiliado con Sony.")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button("Cerrar") {
+                    vm.isShowingAbout = false
+                }
+                .keyboardShortcut(.cancelAction)
+            }
+        }
+        .padding(18)
+        .frame(width: 500)
+        .onAppear {
+            if vm.updateChecker.status == .idle {
+                vm.updateChecker.check()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var updateStatusCard: some View {
+        switch vm.updateChecker.status {
+        case .idle:
+            Text("No se ha comprobado aún.")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+
+        case .checking:
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Buscando actualizaciones en GitHub...")
+                    .font(.system(size: 11.5))
+                    .foregroundColor(.secondary)
+            }
+
+        case .upToDate(let version):
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("¡Tienes la versión más reciente!")
+                        .font(.system(size: 11.5, weight: .semibold))
+                    Text("Versión instalada: \(version) al día con el repositorio.")
+                        .font(.system(size: 10.5))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+        case .updateAvailable(let version, let url, _):
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .foregroundColor(.blue)
+                    .font(.system(size: 18))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("¡Nueva versión disponible: \(version)!")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.primary)
+                    Text("Hay una nueva versión de Chiaki-UCR lista para descargar.")
+                        .font(.system(size: 10.5))
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Button(action: { NSWorkspace.shared.open(url) }) {
+                    Label("Descargar", systemImage: "arrow.down.to.line")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.blue)
+            }
+
+        case .error(let message):
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(message)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Button(action: { vm.openGitHub() }) {
+                    Text("Ver GitHub")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(.borderless)
+            }
+        }
+    }
+}
+
 // MARK: - Main Window View
 
 struct ContentView: View {
@@ -497,6 +882,21 @@ struct ContentView: View {
                 }
 
                 Spacer()
+
+                Button(action: { vm.openDonation() }) {
+                    Label("Donar ☕", systemImage: "heart.fill")
+                        .font(.system(size: 11.5, weight: .semibold))
+                }
+                .buttonStyle(.bordered)
+                .tint(.pink)
+                .help("Apoyar el proyecto con una donación por PayPal")
+
+                Button(action: { vm.isShowingAbout = true }) {
+                    Label("Acerca de", systemImage: "info.circle")
+                        .font(.system(size: 11.5, weight: .semibold))
+                }
+                .buttonStyle(.bordered)
+                .help("Información sobre Chiaki-UCR, versión y actualizaciones")
 
                 if !vm.isChiakiConnected {
                     Button(action: { vm.launchChiakiWithUCR() }) {
@@ -658,6 +1058,9 @@ struct ContentView: View {
         }
         .padding(16)
         .frame(minWidth: 820, minHeight: 560)
+        .sheet(isPresented: $vm.isShowingAbout) {
+            AboutView(vm: vm)
+        }
     }
 }
 
@@ -722,6 +1125,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSWorkspace.shared.setIcon(iconImg, forFile: cmdPath, options: [])
         }
 
+        setupMenuBar()
+
         let contentView = ContentView(vm: vm)
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 840, height: 580),
@@ -734,6 +1139,96 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentView = NSHostingView(rootView: contentView)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func setupMenuBar() {
+        let mainMenu = NSMenu()
+
+        // App Menu
+        let appMenuItem = NSMenuItem()
+        mainMenu.addItem(appMenuItem)
+        let appMenu = NSMenu(title: "Chiaki-UCR")
+        appMenuItem.submenu = appMenu
+
+        let aboutItem = NSMenuItem(title: "Acerca de Chiaki-UCR", action: #selector(openAbout), keyEquivalent: "")
+        aboutItem.target = self
+        appMenu.addItem(aboutItem)
+
+        let updatesItem = NSMenuItem(title: "Buscar actualizaciones...", action: #selector(checkUpdatesMenu), keyEquivalent: "u")
+        updatesItem.target = self
+        appMenu.addItem(updatesItem)
+
+        appMenu.addItem(NSMenuItem.separator())
+
+        let donateItem = NSMenuItem(title: "Donar con PayPal ☕", action: #selector(openDonateMenu), keyEquivalent: "")
+        donateItem.target = self
+        appMenu.addItem(donateItem)
+
+        appMenu.addItem(NSMenuItem.separator())
+
+        let hideItem = NSMenuItem(title: "Ocultar Chiaki-UCR", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(hideItem)
+
+        let hideOthersItem = NSMenuItem(title: "Ocultar otros", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        hideOthersItem.keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(hideOthersItem)
+
+        let unhideAllItem = NSMenuItem(title: "Mostrar todo", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
+        appMenu.addItem(unhideAllItem)
+
+        appMenu.addItem(NSMenuItem.separator())
+
+        let quitItem = NSMenuItem(title: "Salir de Chiaki-UCR", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(quitItem)
+
+        // Edit Menu (ensures standard text shortcuts like Copy/Paste work)
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
+        let editMenu = NSMenu(title: "Edición")
+        editMenuItem.submenu = editMenu
+        editMenu.addItem(withTitle: "Cortar", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copiar", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Pegar", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Seleccionar todo", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+
+        // Help Menu
+        let helpMenuItem = NSMenuItem()
+        mainMenu.addItem(helpMenuItem)
+        let helpMenu = NSMenu(title: "Ayuda")
+        helpMenuItem.submenu = helpMenu
+
+        let repoItem = NSMenuItem(title: "Repositorio en GitHub...", action: #selector(openGitHubMenu), keyEquivalent: "")
+        repoItem.target = self
+        helpMenu.addItem(repoItem)
+
+        let emailItem = NSMenuItem(title: "Contacto (hola@chrystian.dev)...", action: #selector(openEmailMenu), keyEquivalent: "")
+        emailItem.target = self
+        helpMenu.addItem(emailItem)
+
+        NSApp.mainMenu = mainMenu
+    }
+
+    @objc func openAbout() {
+        vm.isShowingAbout = true
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc func checkUpdatesMenu() {
+        vm.isShowingAbout = true
+        vm.updateChecker.check()
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc func openDonateMenu() {
+        vm.openDonation()
+    }
+
+    @objc func openGitHubMenu() {
+        vm.openGitHub()
+    }
+
+    @objc func openEmailMenu() {
+        vm.openEmail()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
