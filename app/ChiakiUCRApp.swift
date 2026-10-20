@@ -98,6 +98,8 @@ final class UCRViewModel: ObservableObject {
     @Published var invertY: Bool = false { didSet { syncToShm() } }
     @Published var walkScalePct: Double = 45.0 { didSet { syncToShm() } }
     @Published var gtaWSAsTriggers: Bool = true { didSet { syncToShm() } }
+    @Published var wheelAssist: Bool = true { didSet { syncToShm() } }
+    @Published var wheelSens: Double = 0.8 { didSet { syncToShm() } }
 
     // Key Bindings
     @Published var btnCrossKey: UInt16 = UInt16(kVK_Space) { didSet { syncToShm() } }
@@ -110,7 +112,7 @@ final class UCRViewModel: ObservableObject {
     @Published var btnL3Key: UInt16 = UInt16(kVK_Shift) { didSet { syncToShm() } }
     @Published var btnR3Key: UInt16 = UInt16(kVK_ANSI_V) { didSet { syncToShm() } }
     @Published var btnTouchpadKey: UInt16 = UInt16(kVK_Tab) { didSet { syncToShm() } }
-    @Published var btnOptionsKey: UInt16 = UInt16(kVK_ANSI_P) { didSet { syncToShm() } }
+    @Published var btnOptionsKey: UInt16 = UInt16(kVK_ANSI_M) { didSet { syncToShm() } }
     @Published var btnPSKey: UInt16 = UInt16(kVK_F10) { didSet { syncToShm() } }
     @Published var btnL2Key: UInt16 = 0xFFFF { didSet { syncToShm() } }
     @Published var btnR2Key: UInt16 = 0xFFFF { didSet { syncToShm() } }
@@ -160,6 +162,8 @@ final class UCRViewModel: ObservableObject {
         invertY = (s.pointee.invert_y != 0)
         walkScalePct = Double(s.pointee.left_stick_walk_pct > 10 ? s.pointee.left_stick_walk_pct : 45)
         gtaWSAsTriggers = (s.pointee.gta_W_S_triggers_in_vehicle != 0)
+        wheelAssist = (s.pointee.wheel_assist_enabled != 0)
+        wheelSens = Double((s.pointee.wheel_sens >= 0.2 && s.pointee.wheel_sens <= 2.0) ? s.pointee.wheel_sens : 0.8)
     }
 
     func syncToShm() {
@@ -175,6 +179,8 @@ final class UCRViewModel: ObservableObject {
         s.pointee.invert_y = invertY ? 1 : 0
         s.pointee.left_stick_walk_pct = UInt8(walkScalePct)
         s.pointee.gta_W_S_triggers_in_vehicle = gtaWSAsTriggers ? 1 : 0
+        s.pointee.wheel_assist_enabled = wheelAssist ? 1 : 0
+        s.pointee.wheel_sens = Float(wheelSens)
         s.pointee.toggle_key_code = UInt16(kVK_F8)
         s.pointee.key_vehicle_toggle = UInt16(kVK_F6)
 
@@ -221,7 +227,6 @@ final class UCRViewModel: ObservableObject {
                 buf[i] = 0xFFFF
             }
             buf[Int(UCR_BTN_SQUARE.rawValue)] = btnSquareAltKey
-            buf[Int(UCR_BTN_TOUCHPAD.rawValue)] = UInt16(kVK_ANSI_M)
             buf[Int(UCR_BTN_OPTIONS.rawValue)] = UInt16(kVK_Return)
             buf[Int(UCR_BTN_DPAD_UP.rawValue)] = UInt16(kVK_UpArrow)
             buf[Int(UCR_BTN_DPAD_RIGHT.rawValue)] = UInt16(kVK_RightArrow)
@@ -312,6 +317,8 @@ final class UCRViewModel: ObservableObject {
         btnL3Key = UInt16(kVK_Shift)        // Sprint
         btnR3Key = UInt16(kVK_ANSI_V)       // Melee / Shoulder Swap
         btnTouchpadKey = UInt16(kVK_Tab)    // Map / Inventory
+        btnOptionsKey = UInt16(kVK_ANSI_M)  // Pause / Menu
+        wheelAssist = true                  // L1 Weapon Wheel assist
         if let s = shmPtr {
             s.pointee.vehicle_mod_active = 0
         }
@@ -342,6 +349,8 @@ final class UCRViewModel: ObservableObject {
         btnL3Key = UInt16(kVK_Control)      // Stealth / Horn
         btnR3Key = UInt16(kVK_ANSI_V)       // Look Behind
         btnTouchpadKey = UInt16(kVK_ANSI_M) // Interaction Menu (M like PC GTA!)
+        btnOptionsKey = UInt16(kVK_ANSI_P)  // Pause (P like PC GTA, M is the Interaction Menu)
+        wheelAssist = true                  // L1 (Tab) Weapon Wheel assist
         if let s = shmPtr {
             s.pointee.vehicle_mod_active = 0
         }
@@ -586,6 +595,14 @@ struct ContentView: View {
                         SliderRow(label: "Compensación Anti-Deadzone", value: $vm.antiDeadzone, range: 0.00...1.00, format: "%.0f%%", mult: 100)
                         SliderRow(label: "Curva Exponencial (1.0=Lineal)", value: $vm.exponent, range: 0.45...1.50, format: "%.2f")
                         SliderRow(label: "Suavizado (Smoothing)", value: $vm.smoothing, range: 0.00...0.60, format: "%.2f")
+
+                        HStack {
+                            Toggle("🎡 Asistente Rueda de Armas (mantener L1)", isOn: $vm.wheelAssist)
+                                .font(.system(size: 12))
+                            Spacer()
+                        }
+                        SliderRow(label: "Sensibilidad Rueda (L1)", value: $vm.wheelSens, range: 0.20...2.00, format: "%.2f")
+                            .disabled(!vm.wheelAssist)
 
                         HStack {
                             Toggle("Invertir Eje Y", isOn: $vm.invertY)

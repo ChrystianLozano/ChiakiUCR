@@ -16,7 +16,7 @@ $(PLUGIN_OUT): $(PLUGIN_SRC) $(SHARED_HDR)
 		$(PLUGIN_SRC) -o $(PLUGIN_OUT)
 	codesign --force --sign - $(PLUGIN_OUT)
 
-$(APP_OUT): $(APP_SRC) $(SHARED_HDR) $(PLUGIN_OUT)
+$(APP_OUT): $(APP_SRC) $(SHARED_HDR) $(PLUGIN_OUT) app/Info.plist
 	mkdir -p Chiaki-UCR.app/Contents/MacOS Chiaki-UCR.app/Contents/Frameworks Chiaki-UCR.app/Contents/Resources
 	cp app/Info.plist Chiaki-UCR.app/Contents/Info.plist
 	cp app/AppIcon.icns Chiaki-UCR.app/Contents/Resources/AppIcon.icns

@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #define CHIAKI_UCR_MAGIC 0x5543524D // "UCRM"
-#define CHIAKI_UCR_VERSION 2
+#define CHIAKI_UCR_VERSION 3
 #define UCR_KEY_NONE 0xFFFF
 #define CHIAKI_UCR_SHM_PATH "/tmp/chiaki_ucr_state.shm"
 #define CHIAKI_UCR_CONFIG_PATH "/tmp/chiaki_ucr_config.json"
@@ -115,6 +115,12 @@ typedef struct __attribute__((packed, aligned(8))) {
     uint8_t  pad3;
     uint16_t key_vehicle_toggle;          // Default: V (9) or F6 (97) to toggle On-Foot vs Driving mode
     uint32_t pad4;
+
+    // Weapon Wheel Assist (v3): while L1 is held, the mouse moves a "virtual cursor" that
+    // holds the Right Stick pointed at the chosen wheel slot instead of snapping back to center.
+    uint8_t  wheel_assist_enabled;        // 1 = Enable L1 radial-menu assist (default: 1)
+    uint8_t  pad5[3];
+    float    wheel_sens;                  // Wheel cursor sensitivity (0.2 .. 2.0, default: 0.8)
 } ChiakiUCRSharedState;
 
 #endif // CHIAKI_UCR_SHARED_H

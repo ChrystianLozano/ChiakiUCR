@@ -92,12 +92,15 @@ xattr -cr /Applications/Chiaki-UCR.app
 | **Círculo (Agacharse / Rodar)** | `C` |
 | **Cuadrado (Recargar / Interactuar)** | `R` (Alternativa: `F`) |
 | **Triángulo (Cambiar Arma)** | `E` (o Rueda Arriba) |
-| **L1 (Habilidad / Rueda de armas)** | `Q` |
+| **L1 (Habilidad / Rueda de armas)** | `Q` (mantener + mover ratón = selección asistida en la rueda) |
 | **R1 (Granada / Cubrirse)** | `G` |
 | **L3 (Correr / Sprint stick)** | `Shift Izquierdo` |
 | **R3 (Cuerpo a cuerpo / Melee)** | `Clic Central` (Rueda del ratón) |
 | **D-Pad (Cruceta)** | Teclas `1`, `2`, `3`, `4` y Flechas |
-| **Options / Menú** | `Escape` / `Tab` |
+| **Touchpad Click (Mapa / Inventario)** | `Tab` |
+| **Options / Pausa** | `M` / `Enter` |
+
+> **🎡 Asistente de Rueda de Armas:** mientras mantienes `L1`, el ratón mueve un cursor virtual que deja el stick derecho apuntando al elemento elegido (no regresa al centro al detener el ratón). Se activa/desactiva y se ajusta su sensibilidad desde la app.
 
 *Todos los controles y sensibilidades se pueden ajustar en tiempo real desde el panel de control de la app.*
 

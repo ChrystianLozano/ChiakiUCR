@@ -60,6 +60,12 @@ typedef int   (*pfn_SDL_JoystickSetVirtualButton)(void *joystick, int button, Ui
 typedef int   (*pfn_SDL_SetHint)(const char *name, const char *value);
 typedef const char* (*pfn_SDL_GetError)(void);
 
+// SDL_JoystickGUID is a 16-byte struct returned by value
+typedef struct { Uint8 data[16]; } UCR_SDL_JoystickGUID;
+typedef UCR_SDL_JoystickGUID (*pfn_SDL_JoystickGetDeviceGUID)(int device_index);
+typedef void  (*pfn_SDL_JoystickGetGUIDString)(UCR_SDL_JoystickGUID guid, char *psz, int cb);
+typedef int   (*pfn_SDL_GameControllerAddMapping)(const char *mapping);
+
 static pfn_SDL_WasInit                  fn_SDL_WasInit = NULL;
 static pfn_SDL_JoystickAttachVirtualEx  fn_SDL_JoystickAttachVirtualEx = NULL;
 static pfn_SDL_JoystickOpen             fn_SDL_JoystickOpen = NULL;
@@ -67,6 +73,9 @@ static pfn_SDL_JoystickSetVirtualAxis   fn_SDL_JoystickSetVirtualAxis = NULL;
 static pfn_SDL_JoystickSetVirtualButton fn_SDL_JoystickSetVirtualButton = NULL;
 static pfn_SDL_SetHint                  fn_SDL_SetHint = NULL;
 static pfn_SDL_GetError                 fn_SDL_GetError = NULL;
+static pfn_SDL_JoystickGetDeviceGUID    fn_SDL_JoystickGetDeviceGUID = NULL;
+static pfn_SDL_JoystickGetGUIDString    fn_SDL_JoystickGetGUIDString = NULL;
+static pfn_SDL_GameControllerAddMapping fn_SDL_GameControllerAddMapping = NULL;
 
 // ============================================================================
 // Engine State
@@ -97,6 +106,10 @@ static uint64_t g_wheel_down_until_ns = 0;
 static float g_smooth_rx = 0.0f;
 static float g_smooth_ry = 0.0f;
 
+// Weapon Wheel Assist virtual cursor (normalized, clamped to unit circle)
+static float g_wheel_x = 0.0f;
+static float g_wheel_y = 0.0f;
+static bool  g_wheel_mode_prev = false;
 static bool  g_cursor_hidden_by_us = false;
 static id    g_local_event_monitor = nil;
 static dispatch_source_t g_main_tick_timer = nil;
@@ -205,11 +218,10 @@ static void init_default_shared_state(ChiakiUCRSharedState *s) {
     s->button_key_primary[UCR_BTN_L3]         = kVK_Shift;           // 56
     // R3 = V or Middle Mouse (Melee / Look Behind / Change Camera)
     s->button_key_primary[UCR_BTN_R3]         = kVK_ANSI_V;          // 9
-    // Touchpad Click = Tab or M (Map / Inventory)
+    // Touchpad Click = Tab (Map / Inventory)
     s->button_key_primary[UCR_BTN_TOUCHPAD]   = kVK_Tab;             // 48
-    s->button_key_secondary[UCR_BTN_TOUCHPAD] = kVK_ANSI_M;          // 46
-    // Options = P or Return/Enter
-    s->button_key_primary[UCR_BTN_OPTIONS]    = kVK_ANSI_P;          // 35
+    // Options (Pause) = M or Return/Enter
+    s->button_key_primary[UCR_BTN_OPTIONS]    = kVK_ANSI_M;          // 46
     s->button_key_secondary[UCR_BTN_OPTIONS]  = kVK_Return;          // 36
     // Share/Create = F12
     s->button_key_primary[UCR_BTN_SHARE]      = kVK_F12;             // 111
@@ -232,6 +244,10 @@ static void init_default_shared_state(ChiakiUCRSharedState *s) {
     // GTA Vehicle mode (toggle with F6): W = R2 (Gas), S = L2 (Brake/Reverse)
     s->gta_W_S_triggers_in_vehicle = 1;
     s->key_vehicle_toggle = kVK_F6; // 97
+
+    // Weapon Wheel Assist (hold L1 -> mouse aims the radial menu)
+    s->wheel_assist_enabled = 1;
+    s->wheel_sens = 0.8f;
     s->config_seq = 1;
 }
 
@@ -488,6 +504,21 @@ static void tick_ucr_engine(void) {
 
             g_virtual_device_index = fn_SDL_JoystickAttachVirtualEx(&desc);
             if (g_virtual_device_index >= 0) {
+                // SDL2's automatic mapping for virtual controllers omits "touchpad", so button 20
+                // never reaches chiaki-ng. Register an explicit mapping that includes touchpad:b20.
+                if (fn_SDL_JoystickGetDeviceGUID && fn_SDL_JoystickGetGUIDString && fn_SDL_GameControllerAddMapping) {
+                    char guid_str[64] = {0};
+                    fn_SDL_JoystickGetGUIDString(fn_SDL_JoystickGetDeviceGUID(g_virtual_device_index), guid_str, sizeof(guid_str));
+                    char mapping[1024];
+                    snprintf(mapping, sizeof(mapping),
+                             "%s,%s,a:b0,b:b1,x:b2,y:b3,back:b4,guide:b5,start:b6,leftstick:b7,rightstick:b8,"
+                             "leftshoulder:b9,rightshoulder:b10,dpup:b11,dpdown:b12,dpleft:b13,dpright:b14,"
+                             "misc1:b15,paddle1:b16,paddle2:b17,paddle3:b18,paddle4:b19,touchpad:b20,"
+                             "leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:a4,righttrigger:a5,",
+                             guid_str, desc.name);
+                    int rc = fn_SDL_GameControllerAddMapping(mapping);
+                    fprintf(stderr, "[ChiakiUCR] Touchpad mapping registered (rc=%d, guid=%s)\n", rc, guid_str);
+                }
                 g_virtual_joy = fn_SDL_JoystickOpen(g_virtual_device_index);
                 if (g_virtual_joy && fn_SDL_JoystickSetVirtualAxis) {
                     // Crucial: In SDL2, raw joystick trigger axes map [-32768 .. +32767] -> [0 .. 32767].
@@ -614,13 +645,47 @@ static void tick_ucr_engine(void) {
     g_shm->raw_mouse_dx = dx;
     g_shm->raw_mouse_dy = dy;
 
+    // Weapon Wheel Assist: while L1 is held (on foot, mouse captured) the mouse drives a virtual
+    // cursor clamped to the unit circle. The Right Stick stays pointed at the chosen slot instead
+    // of snapping back to center when the mouse stops, so radial menus are easy to select.
+    bool l1_held = is_button_key_pressed(g_shm->button_key_primary[UCR_BTN_L1], t_now) ||
+                   is_button_key_pressed(g_shm->button_key_secondary[UCR_BTN_L1], t_now);
+    bool wheel_mode = mouse_capture && g_shm->wheel_assist_enabled && l1_held && !vehicle_mode;
+    if (wheel_mode != g_wheel_mode_prev) {
+        g_wheel_x = 0.0f;
+        g_wheel_y = 0.0f;
+        g_smooth_rx = 0.0f;
+        g_smooth_ry = 0.0f;
+        g_wheel_mode_prev = wheel_mode;
+    }
+
     float decay_ns = (g_shm->decay_ms > 4.0f ? g_shm->decay_ms : 22.0f) * 1e6f;
     double elapsed_since_move = (double)(t_now - g_last_mouse_move_ns);
 
     float target_rx = 0.0f;
     float target_ry = 0.0f;
 
-    if (mouse_capture && (fabsf(dx) > 0.001f || fabsf(dy) > 0.001f || elapsed_since_move < decay_ns)) {
+    if (wheel_mode) {
+        float ws = g_shm->wheel_sens;
+        if (!(ws >= 0.2f && ws <= 2.0f)) ws = 0.8f;
+        // ~180 px of mouse travel reach the wheel edge at sensitivity 1.0
+        g_wheel_x += dx * ws / 180.0f;
+        g_wheel_y += dy * ws / 180.0f;
+        float wm = sqrtf(g_wheel_x * g_wheel_x + g_wheel_y * g_wheel_y);
+        if (wm > 1.0f) {
+            g_wheel_x /= wm;
+            g_wheel_y /= wm;
+            wm = 1.0f;
+        }
+        // Inner dead circle keeps the wheel neutral; beyond it, push the stick fully toward the slot
+        if (wm > 0.30f) {
+            g_smooth_rx = g_wheel_x / wm;
+            g_smooth_ry = g_wheel_y / wm;
+        } else {
+            g_smooth_rx = 0.0f;
+            g_smooth_ry = 0.0f;
+        }
+    } else if (mouse_capture && (fabsf(dx) > 0.001f || fabsf(dy) > 0.001f || elapsed_since_move < decay_ns)) {
         float sens_x = (g_shm->sens_x > 0.5f) ? g_shm->sens_x : 18.0f;
         float sens_y = (g_shm->sens_y > 0.5f) ? g_shm->sens_y : 18.0f;
 
@@ -660,7 +725,9 @@ static void tick_ucr_engine(void) {
     }
 
     float smooth = fminf(fmaxf(g_shm->smoothing, 0.0f), 0.85f);
-    if (!mouse_capture || (target_rx == 0.0f && target_ry == 0.0f && elapsed_since_move >= decay_ns)) {
+    if (wheel_mode) {
+        // Stick already set by the Weapon Wheel Assist above
+    } else if (!mouse_capture || (target_rx == 0.0f && target_ry == 0.0f && elapsed_since_move >= decay_ns)) {
         // Snap immediately to 0 when mouse stops so camera never drifts
         g_smooth_rx = 0.0f;
         g_smooth_ry = 0.0f;
@@ -891,6 +958,9 @@ static void* ucr_bootstrap_thread(void *arg) {
             fn_SDL_JoystickSetVirtualButton = (pfn_SDL_JoystickSetVirtualButton)dlsym(sdl, "SDL_JoystickSetVirtualButton");
             fn_SDL_SetHint                  = (pfn_SDL_SetHint)dlsym(sdl, "SDL_SetHint");
             fn_SDL_GetError                 = (pfn_SDL_GetError)dlsym(sdl, "SDL_GetError");
+            fn_SDL_JoystickGetDeviceGUID    = (pfn_SDL_JoystickGetDeviceGUID)dlsym(sdl, "SDL_JoystickGetDeviceGUID");
+            fn_SDL_JoystickGetGUIDString    = (pfn_SDL_JoystickGetGUIDString)dlsym(sdl, "SDL_JoystickGetGUIDString");
+            fn_SDL_GameControllerAddMapping = (pfn_SDL_GameControllerAddMapping)dlsym(sdl, "SDL_GameControllerAddMapping");
         }
         usleep(50000);
     }
