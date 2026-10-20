@@ -275,13 +275,47 @@ static void setup_shared_memory(void) {
 // HUD Badge Overlay on Chiaki's Active Window & Cursor Lock
 // ============================================================================
 
+static NSWindow* find_best_chiaki_window(void) {
+    if ([NSApp keyWindow] && [[NSApp keyWindow] isVisible]) {
+        return [NSApp keyWindow];
+    }
+    if ([NSApp mainWindow] && [[NSApp mainWindow] isVisible]) {
+        return [NSApp mainWindow];
+    }
+    for (NSWindow *w in [NSApp windows]) {
+        if ([w isVisible] && [w canBecomeKeyWindow]) {
+            return w;
+        }
+    }
+    for (NSWindow *w in [NSApp windows]) {
+        if ([w isVisible]) {
+            return w;
+        }
+    }
+    return [NSApp keyWindow] ?: [[NSApp windows] firstObject];
+}
+
 static void update_hud_and_cursor_on_main_thread(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         if (!g_shm) return;
         bool active = (g_shm->capture_active != 0);
         bool vehicle = (g_shm->vehicle_mod_active != 0);
 
-        NSWindow *win = [NSApp keyWindow] ?: [[NSApp windows] firstObject];
+        NSWindow *win = find_best_chiaki_window();
+
+        if (active) {
+            if (![NSApp isActive]) {
+                [NSApp activateIgnoringOtherApps:YES];
+            }
+            if (win) {
+                if ([win isMiniaturized]) {
+                    [win deminiaturize:nil];
+                }
+                if (![win isKeyWindow]) {
+                    [win makeKeyAndOrderFront:nil];
+                }
+            }
+        }
 
         if (active && [NSApp isActive]) {
             // Prevent CGWarpMouseCursorPosition from freezing keyboard/mouse events for 250ms
@@ -293,14 +327,16 @@ static void update_hud_and_cursor_on_main_thread(void) {
             }
             if (win) {
                 NSRect frame = [win frame];
-                NSRect screenFrame = [[NSScreen mainScreen] frame];
+                NSScreen *screen = [win screen] ?: [NSScreen mainScreen];
+                NSScreen *primary = [NSScreen screens].firstObject ?: screen;
+                CGFloat screenHeight = primary ? primary.frame.size.height : (screen ? screen.frame.size.height : 1080.0);
                 CGPoint center = CGPointMake(
                     frame.origin.x + frame.size.width * 0.5,
-                    screenFrame.size.height - (frame.origin.y + frame.size.height * 0.5)
+                    screenHeight - (frame.origin.y + frame.size.height * 0.5)
                 );
                 CGWarpMouseCursorPosition(center);
             }
-        } else {
+        } else if (!active) {
             CGAssociateMouseAndMouseCursorPosition(true);
             if (g_cursor_hidden_by_us) {
                 [NSCursor unhide];
@@ -984,6 +1020,17 @@ static void* ucr_bootstrap_thread(void *arg) {
             return handle_cocoa_event(event);
         }];
 
+        // When Chiaki becomes active, re-sync capture state & hide/lock cursor if capture is enabled
+        [[NSNotificationCenter defaultCenter] addObserverForName:NSApplicationDidBecomeActiveNotification
+                                                          object:nil
+                                                           queue:[NSOperationQueue mainQueue]
+                                                      usingBlock:^(NSNotification * _Nonnull note) {
+            (void)note;
+            if (g_shm && g_shm->capture_active) {
+                update_hud_and_cursor_on_main_thread();
+            }
+        }];
+
         // Automatically release mouse lock & clear stuck keys if Chiaki loses focus (Cmd+Tab)
         [[NSNotificationCenter defaultCenter] addObserverForName:NSApplicationDidResignActiveNotification
                                                           object:nil
@@ -1002,9 +1049,26 @@ static void* ucr_bootstrap_thread(void *arg) {
         g_main_tick_timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, DISPATCH_TIMER_STRICT, dispatch_get_main_queue());
         dispatch_source_set_timer(g_main_tick_timer, DISPATCH_TIME_NOW, 8 * NSEC_PER_MSEC, 1 * NSEC_PER_MSEC);
         __block uint8_t last_observed_capture = 0;
+        __block BOOL last_observed_app_active = NO;
         dispatch_source_set_event_handler(g_main_tick_timer, ^{
-            if (g_shm && g_shm->capture_active != last_observed_capture) {
+            BOOL app_active = [NSApp isActive];
+            if (g_shm && (g_shm->capture_active != last_observed_capture || app_active != last_observed_app_active)) {
+                bool just_released = (last_observed_capture != 0) && (g_shm->capture_active == 0);
                 last_observed_capture = g_shm->capture_active;
+                last_observed_app_active = app_active;
+                if (just_released) {
+                    pthread_mutex_lock(&g_input_mutex);
+                    g_mouse_left_down = false;
+                    g_mouse_right_down = false;
+                    g_mouse_middle_down = false;
+                    g_mouse_btn4_down = false;
+                    g_mouse_btn5_down = false;
+                    g_accum_dx = 0.0f;
+                    g_accum_dy = 0.0f;
+                    g_smooth_rx = 0.0f;
+                    g_smooth_ry = 0.0f;
+                    pthread_mutex_unlock(&g_input_mutex);
+                }
                 update_hud_and_cursor_on_main_thread();
             }
             tick_ucr_engine();

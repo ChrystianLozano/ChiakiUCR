@@ -391,9 +391,40 @@ final class UCRViewModel: ObservableObject {
         }
     }
 
+    private func bringAppToFront(_ app: NSRunningApplication) {
+        if #available(macOS 14.0, *) {
+            app.activate()
+        } else {
+            app.activate(options: [.activateIgnoringOtherApps])
+        }
+    }
+
+    func activateChiaki() {
+        if chiakiPid > 0, let app = NSRunningApplication(processIdentifier: pid_t(chiakiPid)) {
+            bringAppToFront(app)
+            return
+        }
+        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: "org.streetpea.chiaking")
+        if let app = apps.first {
+            bringAppToFront(app)
+            return
+        }
+        for app in NSWorkspace.shared.runningApplications {
+            if let name = app.localizedName?.lowercased(), name.contains("chiaki") {
+                bringAppToFront(app)
+                return
+            }
+        }
+    }
+
     func toggleCapture() {
         guard let s = shmPtr else { return }
-        s.pointee.capture_active = (s.pointee.capture_active == 0) ? 1 : 0
+        let nextState = (s.pointee.capture_active == 0) ? 1 : 0
+        s.pointee.capture_active = UInt8(nextState)
+        captureActive = (nextState != 0)
+        if nextState != 0 {
+            activateChiaki()
+        }
     }
 
     func toggleVehicleMode() {
