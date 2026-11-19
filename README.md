@@ -42,10 +42,10 @@ A diferencia de soluciones externas lentas o que requieren drivers de kernel pes
   * Ajuste de sensibilidad independiente para ejes X e Y.
   * Multiplicador ADS para apuntar con precisión (clic derecho).
   * Curvas de respuesta (lineal / exponencial) y suavizado de micro-movimientos.
-* **🚗 Modo Vehículo Inteligente (F6):** Conduce en juegos estilo GTA alternando el modo vehículo donde `W` se convierte en acelerador analógico (`R2`) y `S` en freno/reversa (`L2`).
+* **🚗 Modo Vehículo Inteligente (F6):** Conduce en juegos estilo GTA VI alternando el modo vehículo donde `W` se convierte en acelerador analógico (`R2`), `S` en freno/reversa (`L2`) y las flechas Arriba/Abajo controlan el cabeceo en aeronaves y motos.
 * **⚡ Telemetría y Monitoreo en Tiempo Real:** La app SwiftUI se sincroniza a alta velocidad con el plugin inyectado mediante memoria compartida POSIX (`/tmp/chiaki_ucr_state.shm`).
 * **🔒 Captura de Cursor Fluida:** Alterna el bloqueo/liberación del puntero en cualquier momento con `F8` (o `Option + M`).
-* **🎨 Perfiles Rápidos:** Cambia entre perfiles optimizados para *Shooters / FPS* y juegos de mundo abierto (*GTA V / Online*).
+* **🎨 Perfiles Rápidos:** Cambia entre perfiles optimizados para *Shooters / FPS* (*Arc Raiders*) y el esquema oficial de *GTA VI*.
 
 ---
 
@@ -83,25 +83,28 @@ xattr -cr /Applications/Chiaki-UCR.app
    * **`F8`** (o **`Option + M`**): Bloquea el ratón dentro del juego y activa el control DualSense. Vuelve a presionarlo para liberar el cursor y usar tu Mac normalmente.
    * **`F6`**: Alterna el **Modo Conducción / Vehículo** (W = Acelerar R2 / S = Frenar L2).
 
-### ⌨️ Mapeo de Teclas por Defecto
+### ⌨️ Mapeo de Teclas (Perfil GTA VI & Shooter Híbrido)
 
-| Botón DualSense | Tecla / Acción |
-| :--- | :--- |
-| **Stick Izquierdo (Movimiento)** | `W`, `A`, `S`, `D` (`Ctrl Izq` = Caminar lento) |
-| **Stick Derecho (Cámara / Mirilla)** | Movimiento del **Ratón** |
-| **L2 (Apuntar)** | **Clic Derecho** |
-| **R2 (Disparar)** | **Clic Izquierdo** |
-| **Cruz (Saltar / Correr)** | `Espacio` |
-| **Círculo (Agacharse / Rodar)** | `C` |
-| **Cuadrado (Recargar / Interactuar)** | `R` (Alternativa: `F`) |
-| **Triángulo (Cambiar Arma)** | `E` (o Rueda Arriba) |
-| **L1 (Habilidad / Rueda de armas)** | `Q` (mantener + mover ratón = selección asistida en la rueda) |
-| **R1 (Granada / Cubrirse)** | `G` |
-| **L3 (Correr / Sprint stick)** | `Shift Izquierdo` |
-| **R3 (Cuerpo a cuerpo / Melee)** | `Clic Central` (Rueda del ratón) |
-| **D-Pad (Cruceta)** | Teclas `1`, `2`, `3`, `4` y Flechas |
-| **Touchpad Click (Mapa / Inventario)** | `Tab` |
-| **Options / Pausa** | `M` / `Enter` |
+| Botón DualSense | Tecla / Acción | Funciones en GTA VI (9 Modos) |
+| :--- | :--- | :--- |
+| **Stick Izquierdo (Movimiento)** | `W`, `A`, `S`, `D` (`Ctrl Izq` = Caminar lento) | Moverse / Girar (En Modo Vehículo `F6`: `Flechas ↑/↓` = Cabeceo aeronave) |
+| **Stick Derecho (Cámara / Mirilla)** | Movimiento del **Ratón** | Mirar / Apuntar con precisión |
+| **L2 (Gatillo Izquierdo)** | **Clic Derecho** (En Vehículo `F6`: `S`) | Apuntar / Interactuar, Frenar/Reversa, Desacelerar, Freno Izq Paracaídas |
+| **R2 (Gatillo Derecho)** | **Clic Izquierdo** (En Vehículo `F6`: `W`) | Disparar, Agarrar (Melee), Acelerar, Pedalear, Freno Der Paracaídas |
+| **L3 (Stick Izquierdo Click)** | `Shift Izquierdo` | **Correr** (A pie / Apuntando), **Claxon/Nitro**, **Tren de aterrizaje**, **Nadar rápido** |
+| **Cruz (X)** | `Espacio` | **Saltar/Trepar**, **Bloquear/Esquivar**, **Freno de mano**, **Ascender** (Nado), **Abrir paracaídas** |
+| **Círculo (O)** | `C` (o Botón Ratón 4) | **Agacharse**, **Faros** (Vehículo), **Virar Derecha** (Aeronave), **Salto de conejo** (Bici) |
+| **Cuadrado (□)** | `F` (Alternativa: `R`) | **Cuerpo a cuerpo / Golpear/Patear**, **Virar Izquierda** (Aeronave) |
+| **Triángulo (△)** | `E` (o Rueda Arriba) | **Interactuar**, **Cambiar rápido de arma** (Al apuntar), **Salir de vehículo**, **Soltar paracaídas** |
+| **L1 (Bumper Izquierdo)** | `Tab` (En Shooter: `Q`) | **Enfundar** (A pie/Vehículo), **Inventario / Rueda radial** (Al apuntar) |
+| **R1 (Bumper Derecho)** | `Q` (En Shooter: `G` / Botón Ratón 5) | **Cubrirse** (A pie), **Lanzamiento rápido** (Al apuntar), **Disparar** (Vehículo/Aeronave/Bici), **Descender** (Nado) |
+| **R3 (Stick Derecho Click)** | `V` (o Clic Central del ratón) | **Mirar atrás**, **Trayectoria de lanzamiento** (Al apuntar) |
+| **D-Pad Arriba (↑)** | `1` o `Flecha Arriba` | **Celular**, **Acercar Zoom** (Al apuntar) |
+| **D-Pad Derecha (→)** | `2`, `Flecha Derecha` o `Rueda Abajo` | **Controles del Radio**, **Cambiar de lado/hombro** (Al apuntar), **Indicar Derecha** |
+| **D-Pad Abajo (↓)** | `3` o `Flecha Abajo` | **Objetivo / Minimapa**, **Alejar Zoom** (Al apuntar) |
+| **D-Pad Izquierda (←)** | `4` o `Flecha Izquierda` | **Detonar Explosivos**, **Menú de Pareja**, **Indicar Izquierda** |
+| **Touchpad Click** | `M` (En Shooter: `Tab`) | **Mapa** |
+| **Options** | `P` o `Enter` | **Pausa** |
 
 > **🎡 Asistente de Rueda de Armas:** mientras mantienes `L1`, el ratón mueve un cursor virtual que deja el stick derecho apuntando al elemento elegido (no regresa al centro al detener el ratón). Se activa/desactiva y se ajusta su sensibilidad desde la app.
 

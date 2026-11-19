@@ -79,13 +79,13 @@ final class UpdateChecker: ObservableObject {
     private var currentTask: URLSessionDataTask?
 
     var currentVersionString: String {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0"
-        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2"
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.2.0"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "5"
         return "v\(v) (Build \(b))"
     }
 
     var currentShortVersion: String {
-        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0"
+        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.2.0"
     }
 
     func check() {
@@ -467,31 +467,42 @@ final class UCRViewModel: ObservableObject {
     }
 
     func applyPresetGTAOnFoot() {
-        activeProfile = "GTA V / Online (A Pie + Híbrido)"
-        sensX = 21.0
-        sensY = 19.0
-        adsMultiplier = 0.68
-        deadzone = 0.16
-        antiDeadzone = 0.92
-        exponent = 0.78
-        smoothing = 0.14
-        decayMs = 25.0
+        activeProfile = "GTA VI (A Pie + Híbrido)"
+        sensX = 20.0
+        sensY = 18.5
+        adsMultiplier = 0.65
+        deadzone = 0.14
+        antiDeadzone = 0.90
+        exponent = 0.80
+        smoothing = 0.12
+        decayMs = 24.0
         invertY = false
         walkScalePct = 45.0
         gtaWSAsTriggers = true
 
-        btnCrossKey = UInt16(kVK_Shift)     // In GTA, X/Cross is Run/Sprint!
-        btnCircleKey = UInt16(kVK_ANSI_R)   // Reload / Melee in GTA
-        btnSquareKey = UInt16(kVK_Space)    // Jump / Climb in GTA!
-        btnSquareAltKey = UInt16(kVK_ANSI_C)
-        btnTriangleKey = UInt16(kVK_ANSI_F) // Enter / Exit Vehicle (F like PC GTA!)
-        btnL1Key = UInt16(kVK_Tab)          // Weapon Wheel (Tab like PC GTA!)
-        btnR1Key = UInt16(kVK_ANSI_Q)       // Take Cover (Q like PC GTA!)
-        btnL3Key = UInt16(kVK_Control)      // Stealth / Horn
-        btnR3Key = UInt16(kVK_ANSI_V)       // Look Behind
-        btnTouchpadKey = UInt16(kVK_ANSI_M) // Interaction Menu (M like PC GTA!)
-        btnOptionsKey = UInt16(kVK_ANSI_P)  // Pause (P like PC GTA, M is the Interaction Menu)
-        wheelAssist = true                  // L1 (Tab) Weapon Wheel assist
+        // Analizado a partir del esquema oficial de control de GTA VI (9 modos):
+        // - L3 = Correr (A pie / Al apuntar), Nadar más rápido (Nado), Claxon/Nitro (Vehículos), Tren de aterrizaje (Aeronave) -> Shift Izq
+        // - Cruz (X) = Saltar/Trepar (A pie), Bloquear/Esquivar (Cuerpo a cuerpo), Freno de mano (Vehículos), Ascender (Nado), Abrir paracaídas -> Espacio
+        // - Círculo (O) = Agacharse (A pie / Al apuntar), Faros (Vehículos), Virar derecha (Aeronave), Salto de conejo (Bici) -> C
+        // - Cuadrado ([]) = Cuerpo a cuerpo / Golpear/Patear (A pie / Apuntar / Vehículo / Nado), Virar izquierda (Aeronave) -> F (Alt: R)
+        // - Triángulo (/\) = Interactuar (A pie), Cambiar rápido de arma (Al apuntar), Salir de vehículo / Bajarse / Soltar paracaídas -> E
+        // - L1 = Enfundar (A pie / Vehículo / Nado / Paracaídas), Inventario (Al apuntar) -> Tab
+        // - R1 = Cubrirse (A pie), Lanzamiento rápido (Al apuntar), Disparar desde vehículo/bici/aeronave/paracaídas, Descender (Nado) -> Q
+        // - R3 = Mirar atrás (todos los modos), Trayectoria de lanzamiento (Al apuntar) -> V (también Clic Central del ratón)
+        // - Touchpad = Mapa -> M
+        // - Options = Pausa -> P (también Enter)
+        btnCrossKey = UInt16(kVK_Space)     // Saltar/Trepar, Freno de mano, Esquivar, Ascender, Abrir paracaídas
+        btnCircleKey = UInt16(kVK_ANSI_C)   // Agacharse, Faros, Virar Der (Aeronave), Bunny Hop (Bici)
+        btnSquareKey = UInt16(kVK_ANSI_F)   // Cuerpo a cuerpo / Golpear, Virar Izq (Aeronave)
+        btnSquareAltKey = UInt16(kVK_ANSI_R)// Alternativa Cuerpo a cuerpo / Acción secundaria
+        btnTriangleKey = UInt16(kVK_ANSI_E) // Interactuar, Cambiar rápido de arma (Al apuntar), Salir de vehículo (también Rueda Arriba)
+        btnL1Key = UInt16(kVK_Tab)          // Enfundar / Inventario (Al apuntar) + Rueda radial
+        btnR1Key = UInt16(kVK_ANSI_Q)       // Cubrirse (A pie), Lanzamiento rápido (Al apuntar), Disparar (Vehículos), Descender (Nado)
+        btnL3Key = UInt16(kVK_Shift)        // Correr / Sprint (A pie y Al apuntar), Claxon/Nitro, Nadar rápido, Tren de aterrizaje
+        btnR3Key = UInt16(kVK_ANSI_V)       // Mirar atrás / Trayectoria de lanzamiento (Al apuntar)
+        btnTouchpadKey = UInt16(kVK_ANSI_M) // Mapa (Touchpad en GTA VI)
+        btnOptionsKey = UInt16(kVK_ANSI_P)  // Pausa (Options; Enter también funciona como secundaria)
+        wheelAssist = true                  // Asistente radial al mantener L1 (Tab) para el Inventario / Rueda de armas
         if let s = shmPtr {
             s.pointee.vehicle_mod_active = 0
         }
@@ -500,7 +511,7 @@ final class UCRViewModel: ObservableObject {
 
     func applyPresetGTADriving() {
         applyPresetGTAOnFoot()
-        activeProfile = "GTA V / Online (Modo Conducción)"
+        activeProfile = "GTA VI (Modo Conducción)"
         if let s = shmPtr {
             s.pointee.vehicle_mod_active = 1
         }
@@ -959,12 +970,12 @@ struct ContentView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button("🔫 GTA V / Online (Estilo PC: F=Auto, Tab=Armas, Shift=Correr)") {
+                Button("🌴 GTA VI (Shift=Correr, Espacio=Saltar, E=Interactuar, Q=Cubrirse, Tab=Inventario)") {
                     vm.applyPresetGTAOnFoot()
                 }
                 .buttonStyle(.bordered)
 
-                Button(vm.vehicleModeActive ? "🚗 Modo Vehículo GTA: ACTIVO (F6)" : "🚗 Activar Modo Vehículo (F6)") {
+                Button(vm.vehicleModeActive ? "🚗 Modo Vehículo GTA VI: ACTIVO (F6)" : "🚗 Activar Modo Vehículo (F6)") {
                     vm.toggleVehicleMode()
                 }
                 .buttonStyle(.borderedProminent)
@@ -1055,18 +1066,18 @@ struct ContentView: View {
 
                     ScrollView {
                         VStack(spacing: 7) {
-                            KeyBindingRow(label: "🎯 L2 Apuntar (Click Der + Tecla)", keySelection: $vm.btnL2Key, active: vm.l2Value > 0.5)
-                            KeyBindingRow(label: "🔥 R2 Disparar (Click Izq + Tecla)", keySelection: $vm.btnR2Key, active: vm.r2Value > 0.5)
-                            KeyBindingRow(label: "✖️ Cruz (Saltar / Correr GTA)", keySelection: $vm.btnCrossKey, active: vm.activeButtons[Int(UCR_BTN_CROSS.rawValue)])
-                            KeyBindingRow(label: "⭕ Círculo (Agacharse / Rodar)", keySelection: $vm.btnCircleKey, active: vm.activeButtons[Int(UCR_BTN_CIRCLE.rawValue)])
-                            KeyBindingRow(label: "🟥 Cuadrado (Recargar / Saltar GTA)", keySelection: $vm.btnSquareKey, active: vm.activeButtons[Int(UCR_BTN_SQUARE.rawValue)])
+                            KeyBindingRow(label: "🎯 L2 Apuntar / Interactuar (Click Der + Tecla)", keySelection: $vm.btnL2Key, active: vm.l2Value > 0.5)
+                            KeyBindingRow(label: "🔥 R2 Disparar / Agarrar (Click Izq + Tecla)", keySelection: $vm.btnR2Key, active: vm.r2Value > 0.5)
+                            KeyBindingRow(label: "✖️ Cruz (Saltar / Freno Mano / Esquivar)", keySelection: $vm.btnCrossKey, active: vm.activeButtons[Int(UCR_BTN_CROSS.rawValue)])
+                            KeyBindingRow(label: "⭕ Círculo (Agacharse / Faros / Virar Der)", keySelection: $vm.btnCircleKey, active: vm.activeButtons[Int(UCR_BTN_CIRCLE.rawValue)])
+                            KeyBindingRow(label: "🟥 Cuadrado (Cuerpo a cuerpo / Recargar)", keySelection: $vm.btnSquareKey, active: vm.activeButtons[Int(UCR_BTN_SQUARE.rawValue)])
                             KeyBindingRow(label: "🟥 Cuadrado (Tecla Alternativa)", keySelection: $vm.btnSquareAltKey, active: vm.activeButtons[Int(UCR_BTN_SQUARE.rawValue)])
-                            KeyBindingRow(label: "🔺 Triángulo (Cambiar Arma / Subir Auto)", keySelection: $vm.btnTriangleKey, active: vm.activeButtons[Int(UCR_BTN_TRIANGLE.rawValue)])
-                            KeyBindingRow(label: "L1 (Habilidad / Rueda Armas GTA)", keySelection: $vm.btnL1Key, active: vm.activeButtons[Int(UCR_BTN_L1.rawValue)])
-                            KeyBindingRow(label: "R1 (Granada / Cubrirse GTA)", keySelection: $vm.btnR1Key, active: vm.activeButtons[Int(UCR_BTN_R1.rawValue)])
-                            KeyBindingRow(label: "L3 (Sprint / Claxon)", keySelection: $vm.btnL3Key, active: vm.activeButtons[Int(UCR_BTN_L3.rawValue)])
-                            KeyBindingRow(label: "R3 ( Cuerpo a cuerpo / Mirar atrás)", keySelection: $vm.btnR3Key, active: vm.activeButtons[Int(UCR_BTN_R3.rawValue)])
-                            KeyBindingRow(label: "Touchpad Click (Mapa / Menú)", keySelection: $vm.btnTouchpadKey, active: vm.activeButtons[Int(UCR_BTN_TOUCHPAD.rawValue)])
+                            KeyBindingRow(label: "🔺 Triángulo (Interactuar / Arma / Vehículo)", keySelection: $vm.btnTriangleKey, active: vm.activeButtons[Int(UCR_BTN_TRIANGLE.rawValue)])
+                            KeyBindingRow(label: "L1 (Enfundar / Inventario GTA VI)", keySelection: $vm.btnL1Key, active: vm.activeButtons[Int(UCR_BTN_L1.rawValue)])
+                            KeyBindingRow(label: "R1 (Cubrirse / Lanzamiento / Disparar Auto)", keySelection: $vm.btnR1Key, active: vm.activeButtons[Int(UCR_BTN_R1.rawValue)])
+                            KeyBindingRow(label: "L3 (Correr / Claxon-Nitro / Tren Aterrizaje)", keySelection: $vm.btnL3Key, active: vm.activeButtons[Int(UCR_BTN_L3.rawValue)])
+                            KeyBindingRow(label: "R3 (Mirar atrás / Trayectoria lanzamiento)", keySelection: $vm.btnR3Key, active: vm.activeButtons[Int(UCR_BTN_R3.rawValue)])
+                            KeyBindingRow(label: "Touchpad Click (Mapa)", keySelection: $vm.btnTouchpadKey, active: vm.activeButtons[Int(UCR_BTN_TOUCHPAD.rawValue)])
                             KeyBindingRow(label: "Options (Pausa)", keySelection: $vm.btnOptionsKey, active: vm.activeButtons[Int(UCR_BTN_OPTIONS.rawValue)])
                             KeyBindingRow(label: "Botón PS (Home)", keySelection: $vm.btnPSKey, active: vm.activeButtons[Int(UCR_BTN_PS.rawValue)])
                         }

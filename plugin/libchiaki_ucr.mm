@@ -153,7 +153,7 @@ static void sanitize_shared_keybindings(ChiakiUCRSharedState *s) {
 }
 
 // ============================================================================
-// Default Profile Initialization (Arc Raiders & GTA V Ready)
+// Default Profile Initialization (Arc Raiders & GTA VI Ready)
 // ============================================================================
 
 static void init_default_shared_state(ChiakiUCRSharedState *s) {
@@ -173,7 +173,7 @@ static void init_default_shared_state(ChiakiUCRSharedState *s) {
     s->chiaki_pid = (uint32_t)getpid();
     s->capture_active = 0;
 
-    strncpy(s->active_profile, "Arc Raiders + GTA Hybrid", sizeof(s->active_profile) - 1);
+    strncpy(s->active_profile, "Arc Raiders + GTA VI Hybrid", sizeof(s->active_profile) - 1);
 
     // Tuned Mouse -> PS5 Right Stick parameters
     s->sens_x = 18.5f;
@@ -200,27 +200,27 @@ static void init_default_shared_state(ChiakiUCRSharedState *s) {
         s->button_key_secondary[i] = UCR_KEY_NONE;
     }
 
-    // PlayStation Controller Buttons mapped to standard PC Shooter / GTA keys:
-    // Cross (X) = Space (Jump / Sprint in GTA)
+    // PlayStation Controller Buttons mapped to standard PC Shooter / GTA VI keys:
+    // Cross (X) = Space (Saltar/Trepar / Freno de mano / Ascender)
     s->button_key_primary[UCR_BTN_CROSS]      = kVK_Space;           // 49
-    // Circle (O) = C (Crouch / Dodge / Roll)
+    // Circle (O) = C (Agacharse / Faros / Virar Der)
     s->button_key_primary[UCR_BTN_CIRCLE]     = kVK_ANSI_C;          // 8
-    // Square ([]) = R or F (Reload / Interact / Enter Vehicle in GTA)
+    // Square ([]) = R or F (Cuerpo a cuerpo / Golpear / Virar Izq)
     s->button_key_primary[UCR_BTN_SQUARE]     = kVK_ANSI_R;          // 15
     s->button_key_secondary[UCR_BTN_SQUARE]   = kVK_ANSI_F;          // 3
-    // Triangle (/\) = E (Swap Weapon / Interact / Exit or Enter Vehicle)
+    // Triangle (/\) = E (Interactuar / Cambiar rápido de arma / Salir de vehículo)
     s->button_key_primary[UCR_BTN_TRIANGLE]   = kVK_ANSI_E;          // 14
-    // L1 = Q (Gadget / Weapon Wheel in GTA / Ping in Arc Raiders)
+    // L1 = Q (Enfundar / Inventario al apuntar)
     s->button_key_primary[UCR_BTN_L1]         = kVK_ANSI_Q;          // 12
-    // R1 = G (Grenade / Cover in GTA / Ability in Arc Raiders)
+    // R1 = G (Cubrirse / Lanzamiento rápido / Disparar vehículo)
     s->button_key_primary[UCR_BTN_R1]         = kVK_ANSI_G;          // 5
-    // L3 = Left Shift (Sprint)
+    // L3 = Left Shift (Correr / Claxon-Nitro / Tren de aterrizaje / Nadar rápido)
     s->button_key_primary[UCR_BTN_L3]         = kVK_Shift;           // 56
-    // R3 = V or Middle Mouse (Melee / Look Behind / Change Camera)
+    // R3 = V or Middle Mouse (Mirar atrás / Trayectoria de lanzamiento)
     s->button_key_primary[UCR_BTN_R3]         = kVK_ANSI_V;          // 9
-    // Touchpad Click = Tab (Map / Inventory)
+    // Touchpad Click = Tab (Mapa)
     s->button_key_primary[UCR_BTN_TOUCHPAD]   = kVK_Tab;             // 48
-    // Options (Pause) = M or Return/Enter
+    // Options (Pausa) = M or Return/Enter
     s->button_key_primary[UCR_BTN_OPTIONS]    = kVK_ANSI_M;          // 46
     s->button_key_secondary[UCR_BTN_OPTIONS]  = kVK_Return;          // 36
     // Share/Create = F12
@@ -229,6 +229,10 @@ static void init_default_shared_state(ChiakiUCRSharedState *s) {
     s->button_key_primary[UCR_BTN_PS]         = kVK_F10;             // 109
 
     // D-Pad = 1, 2, 3, 4 AND Arrow Keys
+    // Up (1): Celular / Acercar Zoom
+    // Right (2): Controles del Radio / Cambiar de lado (hombro) / Indicar Derecha
+    // Down (3): Objetivo/Minimapa / Alejar Zoom
+    // Left (4): Detonar Explosivos / Menú de Pareja / Indicar Izquierda
     s->button_key_primary[UCR_BTN_DPAD_UP]      = kVK_ANSI_1;        // 18
     s->button_key_secondary[UCR_BTN_DPAD_UP]    = kVK_UpArrow;       // 126
     s->button_key_primary[UCR_BTN_DPAD_RIGHT]   = kVK_ANSI_2;        // 19
@@ -241,7 +245,7 @@ static void init_default_shared_state(ChiakiUCRSharedState *s) {
     s->key_l2 = UCR_KEY_NONE;
     s->key_r2 = UCR_KEY_NONE;
 
-    // GTA Vehicle mode (toggle with F6): W = R2 (Gas), S = L2 (Brake/Reverse)
+    // GTA VI Vehicle mode (toggle with F6): W = R2 (Acelerar), S = L2 (Frenar/Reversa)
     s->gta_W_S_triggers_in_vehicle = 1;
     s->key_vehicle_toggle = kVK_F6; // 97
 

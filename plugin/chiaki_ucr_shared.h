@@ -82,7 +82,7 @@ typedef struct __attribute__((packed, aligned(8))) {
 
     // Tunable UCR Configuration (written by UI or loaded by plugin)
     uint32_t config_seq;         // Incremented when UI changes settings
-    char     active_profile[64]; // e.g. "Arc Raiders", "GTA V / Online"
+    char     active_profile[64]; // e.g. "Arc Raiders", "GTA VI"
 
     // Mouse -> Right Stick Aiming parameters
     float    sens_x;             // Base X sensitivity (default: 18.0)
